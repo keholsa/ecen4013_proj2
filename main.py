@@ -1,0 +1,1 @@
+# executing function automatically on power on of raspberry pi
