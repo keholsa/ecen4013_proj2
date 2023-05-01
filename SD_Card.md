@@ -3,6 +3,9 @@ import machine
 import sdcard
 import uos
 
+import serial
+import pynmea2 
+
 # Assign chip select (CS) pin (and start it high)
 cs = machine.Pin(9, machine.Pin.OUT)
 
@@ -36,7 +39,34 @@ with open("/sd/Data01.txt", "w") as file:
     file.write("Longitude ")
     file.write("Number of Satellites: ")
     file.write("Elevation: ")
-    
+
+
+ser = serial.Serial('/dev/ttyS0', 9600) # configure the serial port for GPS communication
+filename = 'gps_data.txt'
+
+# Initialize the SD card and create a file
+with open(filename, 'w') as file:
+    file.write('Latitude,Longitude,Number of Satellites\n')
+
+while True:
+    try:
+        data = ser.readline().decode('utf-8')
+        if data[0:6] == '$GPGGA': # extract data only from the GPGGA sentence
+            msg = pynmea2.parse(data)
+            latitude = msg.latitude           
+            longitude = msg.longitude 
+            num_sats = msg.num_sats 
+            angular_velocity = msg.angular_velocity
+            linear_acceleration = msg.linear_acceleration
+            magnetic_field = msg.magnetic_field
+            elevation = msg.elevation
+            with open(filename, 'a') as file:
+                file.write(f'{latitude},{longitude},{num_sats}\n')
+    except KeyboardInterrupt:
+        break
+
+ser.close() # close the serial port after the program execution is complete
+
     
     
 #-----------WE CHANGE THE NAME OF THE FILE TO WHATEVER--------------
