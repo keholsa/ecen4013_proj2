@@ -3,7 +3,7 @@ from machine import Pin, I2C, UART
 import time
 from bno055 import *
 import sdcard
-import uos
+import os
 
 
 # Assign chip select (CS) pin (and start it high)
@@ -59,10 +59,6 @@ def imu_func():
     mag_data.append([mag_x, mag_y, mag_z])
     gyro_data.append([gyro_x, gyro_y, gyro_z])
     lin_acc_data.append([lin_acc_x, lin_acc_y, lin_acc_z])
-    
-    print(mag_data[0])
-    print(gyro_data[0])
-    print(lin_acc_data[0])
 
     # return first index of array tuple for each element
     return mag_data[0], gyro_data[0], lin_acc_data[0]
@@ -75,14 +71,12 @@ def gps_func():
     flag = 0
     rawDataArr = []
     
-    print("GPS process begins")
 
     # while loop that gets first line of data
     while flag <= 4:
         
         # checking if any uart comm on device
         if uart.any():
-            print("reading from line")
             
             # try and catch due to unicode error
             try:
@@ -104,7 +98,7 @@ def gps_func():
             except UnicodeError as e:
                 
                 # ignores exception, continues loop
-                print("failure")
+                pass
 
     dataString = ''.join(rawDataArr)
 
@@ -150,60 +144,88 @@ def bluetooth_func(gps_data, magnetic_field_data, gyroscope_data, accelerometer_
     uart.write("Linear Acceleration Vector: " + accel_x + ", " + accel_y + ", " + accel_z + "\n")
     uart.write("Gyroscope Vector: " + gyro_x + ", " + gyro_y + ", " + gyro_z + "\n")
     uart.write("Magnetic Field Vector: " + mag_x + ", " + mag_y + ", " + mag_z + "\n")
+    print("Bluetooth has been updated...")
     
 
+def sd_func_initialize(gps_data, magnetic_field_data, gyroscope_data, linear_acceleration_data):
+    
+    # Define the filename
+    filename = "/sd/GPS.csv"
+    with open(filename, "w") as file:
+        # Write the data rows
+
+        # GPS data
+        latitude = str(gps_data[0])
+        longitude = str(gps_data[1])
+        elevation = str(gps_data[2])
+        numSatellites = str(gps_data[3])
+
+        # IMU data
+        mag_x = str(magnetic_field_data[0])
+        mag_y = str(magnetic_field_data[1])
+        mag_z = str(magnetic_field_data[2])
+
+        gyro_x = str(gyroscope_data[0])
+        gyro_y = str(gyroscope_data[1])
+        gyro_z = str(gyroscope_data[2])
+
+        accel_x = str(linear_acceleration_data[0])
+        accel_y = str(linear_acceleration_data[1])
+        accel_z = str(linear_acceleration_data[2])
+
+        # Write the row to the file
+        file.write("{},{},{},{},{},{},{},{},{},{},{},{},{}\n".format(latitude, longitude, elevation, numSatellites, mag_x, mag_y, mag_z, gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z))
+
 def sd_func(gps_data, magnetic_field_data, gyroscope_data, linear_acceleration_data):
-
-    # Mount filesystem
-    vfs = uos.VfsFat(sd)
-    uos.mount(vfs, "/sd")
-
+    
     # Define the filename
     filename = "/sd/GPS.csv"
 
-    # Open the file in write mode
-    with open(filename, "w") as file:
-        # Write the header row
-        file.write("Latitude,Longitude,Elevation,Satellite Count,Mag X,Mag Y,Mag Z,Gyro X,Gyro Y,Gyro Z,Accel X,Accel Y,Accel Z\n")
+    with open(filename, "a") as file:
 
-        # Write the data rows
-        for i in range(len(gps_data)):
-            # GPS data
-            latitude = str(gps_data[0])
-            longitude = str(gps_data[1])
-            elevation = str(gps_data[2])
-            numSatellites = str(gps_data[3])
-            
-            # IMU data
-            mag_x = str(magnetic_field_data[0])
-            mag_y = str(magnetic_field_data[1])
-            mag_z = str(magnetic_field_data[2])
-            
-            gyro_x = str(gyroscope_data[0])
-            gyro_y = str(gyroscope_data[1])
-            gyro_z = str(gyroscope_data[2])
-            
-            accel_x = str(linear_acceleration_data[0])
-            accel_y = str(linear_acceleration_data[1])
-            accel_z = str(linear_acceleration_data[2])
+        # GPS data
+        latitude = str(gps_data[0])
+        longitude = str(gps_data[1])
+        elevation = str(gps_data[2])
+        numSatellites = str(gps_data[3])
 
-            # Write the row to the file
-            file.write("{},{},{},{},{},{},{},{},{},{},{},{}\n".format(latitude, longitude, elevation, numSatellites, mag_x, mag_y, mag_z, gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z))
+        # IMU data
+        mag_x = str(magnetic_field_data[0])
+        mag_y = str(magnetic_field_data[1])
+        mag_z = str(magnetic_field_data[2])
 
-            
+        gyro_x = str(gyroscope_data[0])
+        gyro_y = str(gyroscope_data[1])
+        gyro_z = str(gyroscope_data[2])
+
+        accel_x = str(linear_acceleration_data[0])
+        accel_y = str(linear_acceleration_data[1])
+        accel_z = str(linear_acceleration_data[2])
+
+        # Write the row to the file
+        file.write("{},{},{},{},{},{},{},{},{},{},{},{},{}\n".format(latitude, longitude, elevation, numSatellites, mag_x, mag_y, mag_z, gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z))
+
+        print("SD card updated...")
+# Mount filesystem
+os.mount(sd, "/sd")
+sd_func_initialize(["Latitude","Longitude", "Elevation", "Satellites"],
+                   ["Magnetism X","Magnetism Y", "Magnetism Z"],
+                   ["Gyroscope X","Gyroscope Y", "Gyroscope Z"],
+                   ["Accelerometer X","Accelerometer Y", "Accelerometer Z"])
+if "/sd" in os.listdir():
+    os.umount("/sd")
 while True:
     magnetic_field_data, gyroscope_data, accelerometer_data = imu_func()
 
     gpsArr = gps_func()
-
-    bluetooth_func(gpsArr, magnetic_field_data, gyroscope_data, accelerometer_data)
-
-    sd_func(gpsArr, magnetic_field_data, gyroscope_data, accelerometer_data)
 
     print(gpsArr)
     print(accelerometer_data)
     print(magnetic_field_data)
     print(gyroscope_data)
     
-    time.sleep(.1)
+    bluetooth_func(gpsArr, magnetic_field_data, gyroscope_data, accelerometer_data)
+
+    sd_func(gpsArr, magnetic_field_data, gyroscope_data, accelerometer_data)
+
 
